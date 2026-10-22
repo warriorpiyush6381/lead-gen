@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" defer></script>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --surface-soft: #fafaf9;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --muted: #78716c;
+    --label: #a8a29e;
+    --placeholder: #c7c2bd;
+    --accent: #2f6f6a;
+    --accent-soft: #e3efed;
+    --accent-ring: rgba(47, 111, 106, .15);
+    --dark: #1c1917;
+    --on-dark: #fafaf9;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1340px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Form ---------- */
+  .form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .form fieldset { border: 0; padding: 0; margin: 0 0 24px; }
+  .form legend {
+    font-size: 12px; font-weight: 600; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px 24px;
+  }
+  .field label {
+    display: block; font-size: 12px; color: var(--label);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .field input, .field select {
+    width: 100%; height: 38px; padding: 0 10px;
+    font: inherit; color: var(--text);
+    background: #fff; border: 1px solid var(--border); border-radius: 4px;
+  }
+  .field input::placeholder { color: var(--placeholder); }
+  .field input:focus, .field select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
+  }
+  .actions { display: flex; gap: 12px; justify-content: flex-end; }
+  .btn {
+    height: 38px; padding: 0 18px; font: inherit; font-weight: 500;
+    border-radius: 4px; cursor: pointer; border: 1px solid var(--border);
+    background: #fff; color: var(--text);
+  }
+  .btn.primary { background: var(--dark); border-color: var(--dark); color: var(--on-dark); }
+  .btn:hover { filter: brightness(.96); }
+  .btn:disabled { opacity: .6; cursor: progress; }
+
+  /* ---------- Lead card ---------- */
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .card-head {
+    display: grid;
+    grid-template-columns: auto 1fr auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .check { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+  .name-row { display: flex; align-items: center; gap: 8px; }
+  .name { font-weight: 600; font-size: 14px; }
+  .badge {
+    display: inline-grid; place-items: center;
+    min-width: 18px; height: 18px; padding: 0 4px;
+    font-size: 11px; border-radius: 9px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .badge.hot { border-color: var(--accent-soft); color: var(--accent); background: var(--accent-soft); }
+  .phone { color: var(--muted); margin-top: 6px; font-size: 13px; }
+  .status { width: 158px; border: 1px solid var(--dark); border-radius: 4px; overflow: hidden; font-size: 12px; }
+  .status .stage { background: var(--dark); color: var(--on-dark); padding: 3px 12px; font-weight: 500; }
+  .status .sub-status { padding: 3px 12px; color: var(--muted); }
+  .counters { display: flex; align-items: center; gap: 18px; justify-self: end; color: var(--muted); font-size: 13px; }
+  .counter { display: inline-flex; align-items: center; gap: 6px; }
+  .counter svg { width: 18px; height: 18px; fill: var(--accent); }
+  .view-all { color: var(--accent); text-decoration: none; }
+  .icon-btn { display: inline-grid; place-items: center; width: 20px; height: 20px; color: var(--muted); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  .card-body { background: var(--surface-soft); padding: 12px 62px 18px; position: relative; }
+  .tabs { display: flex; gap: 24px; margin-bottom: 22px; }
+  .tab {
+    padding: 8px 0; font: inherit; font-size: 14px; background: none; border: 0;
+    border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer;
+  }
+  .tab[aria-selected="true"] { color: var(--text); font-weight: 500; border-bottom-color: var(--dark); }
+  .details { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 24px; }
+  .detail { min-height: 64px; }
+  .detail dt { font-size: 12px; text-transform: uppercase; color: var(--label); margin-bottom: 6px; }
+  .detail dd { margin: 0; font-size: 14px; color: var(--text); }
+  .detail dd.link { text-decoration: underline; text-underline-offset: 2px; }
+  .next {
+    position: absolute; right: 20px; top: 50%;
+    color: var(--accent); width: 22px; height: 22px;
+  }
+  .empty { color: var(--muted); padding: 24px 0; }
+
+  /* ---------- Crop dialog ---------- */
+  .crop-dialog {
+    width: min(960px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+    padding: 0; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); color: var(--text);
+  }
+  .crop-dialog::backdrop { background: rgba(28, 25, 23, .45); }
+  .crop-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .crop-head h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .crop-size { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .crop-stage { padding: 16px 20px; background: var(--surface-soft); }
+  .crop-stage .frame { height: min(60vh, 520px); }
+  .crop-stage img { display: block; max-width: 100%; }
+  .crop-foot { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid var(--border); }
+  .crop-foot .group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cropper-view-box { outline-color: var(--accent); }
+  .cropper-point, .cropper-line { background-color: var(--accent); }
+
+  @media (max-width: 900px) {
+    .grid, .details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card-head { grid-template-columns: auto 1fr; }
+    .status, .counters { grid-column: 2; justify-self: start; }
+    .counters { flex-wrap: wrap; gap: 14px; }
+    .card-body { padding: 12px 20px 18px; }
+    .next { display: none; }
+  }
+  @media (max-width: 520px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <!-- ===== Form view ===== -->
+  <section id="form-view">
+    <h1>Create Lead</h1>
+    <p class="sub">Fill in the details and generate the lead page.</p>
+
+    <form id="lead-form" class="form" autocomplete="off">
+      <fieldset>
+        <legend>Lead</legend>
+        <div class="grid">
+          <div class="field"><label for="name">Name</label><input id="name" name="name" required placeholder="Aishwarya KA"></div>
+          <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" required placeholder="7356078344"></div>
+          <div class="field">
+            <label for="stage">Stage</label>
+            <select id="stage" name="stage">
+              <option>1 - New</option><option>2 - Contacted</option><option>3 - Interested</option>
+              <option>4 - Application</option><option>5 - Enrolled</option><option>6 - Lost</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="subStatus">Sub Status</label>
+            <select id="subStatus" name="subStatus">
+              <option>Not Known</option><option>Call Back</option><option>Not Reachable</option>
+              <option>Follow Up</option><option>Not Interested</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Personal &amp; Source Details</legend>
+        <div class="grid">
+          <div class="field"><label for="consultant">Consultant</label><input id="consultant" name="consultant" placeholder="Direct"></div>
+          <div class="field"><label for="course">Course</label><input id="course" name="course" placeholder="PGDM"></div>
+          <div class="field">
+            <label for="formType">Form Type</label>
+            <select id="formType" name="formType"><option>Online</option><option>Offline</option></select>
+          </div>
+          <div class="field"><label for="country">Country</label><input id="country" name="country" value="India"></div>
+          <div class="field"><label for="state">State</label><input id="state" name="state"></div>
+          <div class="field"><label for="district">District</label><input id="district" name="district"></div>
+          <div class="field"><label for="city">City</label><input id="city" name="city"></div>
+          <div class="field"><label for="addedOn">Lead Added On</label><input id="addedOn" name="addedOn" type="datetime-local"></div>
+          <div class="field"><label for="updatedOn">Last Updated On</label><input id="updatedOn" name="updatedOn" type="datetime-local"></div>
+          <div class="field"><label for="owner">Current Lead Owner</label><input id="owner" name="owner" placeholder="Rani Singh"></div>
+          <div class="field"><label for="leadAge">Lead Age (days)</label><input id="leadAge" name="leadAge" type="number" min="0" placeholder="Auto from Lead Added On"></div>
+          <div class="field"><label for="channel">Channel</label><input id="channel" name="channel" placeholder="Digital Paid"></div>
+          <div class="field"><label for="source">Source</label><input id="source" name="source" placeholder="Facebook Ads"></div>
+          <div class="field"><label for="medium">Medium</label><input id="medium" name="medium"></div>
+          <div class="field"><label for="campaign">Campaign Name</label><input id="campaign" name="campaign" placeholder="Bulkupload"></div>
+          <div class="field"><label for="score">Lead Score</label><input id="score" name="score" type="number" min="0"></div>
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="reset" class="btn">Clear</button>
+        <button type="submit" class="btn primary">Generate Page</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ===== Generated lead page ===== -->
+  <section id="lead-view" hidden>
+    <div class="toolbar">
+      <h1>Lead</h1>
+      <div style="display:flex; gap:8px">
+        <button id="edit-btn" class="btn">Edit</button>
+        <button id="copy-btn" class="btn">Copy Link</button>
+        <button id="shot-btn" class="btn primary">Screenshot</button>
+      </div>
+    </div>
+
+    <article class="card" data-testid="lead-card">
+      <header class="card-head">
+        <input type="checkbox" class="check" aria-label="Select lead">
+        <div>
+          <div class="name-row">
+            <span class="name" data-out="name"></span>
+            <span class="badge hot" title="Hot">0</span>
+            <span class="badge" title="Duplicates">0</span>
+          </div>
+          <div class="phone" data-out="phone"></div>
+        </div>
+        <div class="status">
+          <div class="stage" data-out="stage"></div>
+          <div class="sub-status" data-out="subStatus"></div>
+        </div>
+        <div></div>
+        <div class="counters">
+          <span class="counter" title="Assignees">
+            <svg viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.5"/><circle cx="17" cy="6" r="2.5"/><path d="M3 12h8v2H3zM13 12h8v2h-8zM6 15h2v5H6zM16 15h2v5h-2zM9 18h6v2H9z"/></svg>0
+          </span>
+          <a href="#" class="view-all">View all</a>
+          <span class="counter" title="Calls">
+            <svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg>0
+          </span>
+          <span class="counter" title="Emails">
+            <svg viewBox="0 0 24 24"><path d="M2 5h20v14H2zm2 2v.5l8 5 8-5V7l-8 5z"/></svg>0
+          </span>
+          <span class="counter" title="WhatsApp">
+            <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15L2 22l5.1-1.3A10 10 0 1 0 12 2zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2s-1 .3-3.4-.7a11.6 11.6 0 0 1-4.6-4.1c-.4-.5-1-1.6-1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.9 2c.1.2.1.4 0 .6l-.4.6-.3.4c-.1.1-.2.3 0 .5.1.3.6 1 1.3 1.6.9.8 1.6 1 1.9 1.2.2.1.4.1.5-.1l.8-.9c.2-.2.4-.2.6-.1l1.9.9c.3.1.4.2.5.3 0 .2 0 .8-.2 1.4z"/></svg>
+          </span>
+          <span class="counter" title="Chats">
+            <svg viewBox="0 0 24 24"><path d="M3 3h18v14H8l-5 4zm4 6v2h2V9zm4 0v2h2V9zm4 0v2h2V9z"/></svg>0
+          </span>
+          <span class="icon-btn" aria-label="More">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+          </span>
+          <span class="icon-btn" aria-label="Collapse">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 15l6-6 6 6"/></svg>
+          </span>
+        </div>
+      </header>
+
+      <div class="card-body">
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" aria-selected="true" data-tab="personal">Personal &amp; Source Details</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="followup">Followup Details</button>
+        </div>
+
+        <div id="tab-personal" role="tabpanel">
+          <dl class="details">
+            <div class="detail"><dt>Consultant</dt><dd data-out="consultant"></dd></div>
+            <div class="detail"><dt>Course</dt><dd data-out="course"></dd></div>
+            <div class="detail"><dt>Form Type</dt><dd data-out="formType"></dd></div>
+            <div class="detail"><dt>Country</dt><dd data-out="country"></dd></div>
+            <div class="detail"><dt>State</dt><dd data-out="state"></dd></div>
+            <div class="detail"><dt>District</dt><dd data-out="district"></dd></div>
+            <div class="detail"><dt>City</dt><dd data-out="city"></dd></div>
+            <div class="detail"><dt>Lead Added On</dt><dd data-out="addedOn"></dd></div>
+            <div class="detail"><dt>Last Updated On</dt><dd data-out="updatedOn"></dd></div>
+            <div class="detail"><dt>Current Lead Owner</dt><dd data-out="owner"></dd></div>
+            <div class="detail"><dt>Lead Age</dt><dd data-out="leadAge"></dd></div>
+            <div class="detail"><dt>Channel</dt><dd class="link" data-out="channel"></dd></div>
+            <div class="detail"><dt>Source</dt><dd class="link" data-out="source"></dd></div>
+            <div class="detail"><dt>Medium</dt><dd data-out="medium"></dd></div>
+            <div class="detail"><dt>Campaign Name</dt><dd class="link" data-out="campaign"></dd></div>
+            <div class="detail"><dt>Lead Score</dt><dd data-out="score"></dd></div>
+          </dl>
+          <svg class="next" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 5l7 7-7 7"/></svg>
+        </div>
+
+        <div id="tab-followup" role="tabpanel" hidden>
+          <p class="empty">No followups yet.</p>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ===== Screenshot crop dialog ===== -->
+  <dialog id="crop-dialog" class="crop-dialog" aria-labelledby="crop-title">
+    <div class="crop-head">
+      <h2 id="crop-title">Crop screenshot</h2>
+      <span class="crop-size" id="crop-size"></span>
+    </div>
+    <div class="crop-stage"><div class="frame"><img id="crop-img" alt="Lead card screenshot"></div></div>
+    <div class="crop-foot">
+      <div class="group">
+        <button type="button" class="btn" id="crop-reset">Reset</button>
+        <button type="button" class="btn" id="crop-full">Full Card</button>
+      </div>
+      <div class="group">
+        <button type="button" class="btn" id="crop-cancel">Cancel</button>
+        <button type="button" class="btn" id="crop-copy">Copy Image</button>
+        <button type="button" class="btn primary" id="crop-download">Download PNG</button>
+      </div>
+    </div>
+  </dialog>
+</main>
+
+<script>
+  const form = document.getElementById('lead-form');
+  const formView = document.getElementById('form-view');
+  const leadView = document.getElementById('lead-view');
+  const DAY = 86400000;
+
+  const fmtDate = (v) => {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d)) return v;
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return `${date} ${time}`;
+  };
+
+  const nowLocal = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
+
+  function render(data) {
+    const age = data.leadAge !== '' && data.leadAge != null
+      ? Number(data.leadAge)
+      : (data.addedOn ? Math.max(0, Math.floor((Date.now() - new Date(data.addedOn)) / DAY)) : '');
+    const view = {
+      ...data,
+      addedOn: fmtDate(data.addedOn),
+      updatedOn: fmtDate(data.updatedOn),
+      leadAge: age === '' ? '' : `${age} ${age === 1 ? 'Day' : 'Days'}`,
+    };
+    document.querySelectorAll('[data-out]').forEach((el) => {
+      el.textContent = view[el.dataset.out] ?? '';
+    });
+    document.title = `${data.name || 'Lead'} · Lead`;
+    formView.hidden = true;
+    leadView.hidden = false;
+  }
+
+  function showForm() {
+    leadView.hidden = true;
+    formView.hidden = false;
+    document.title = 'Lead Generator';
+  }
+
+  // Defaults for date fields
+  form.addedOn.value = nowLocal();
+  form.updatedOn.value = nowLocal();
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(form));
+    const params = new URLSearchParams(data);
+    history.pushState(null, '', `?${params}`);
+    render(data);
+  });
+
+  document.getElementById('edit-btn').addEventListener('click', () => {
+    history.pushState(null, '', location.pathname);
+    showForm();
+  });
+
+  document.getElementById('copy-btn').addEventListener('click', async (e) => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      e.target.textContent = 'Copied';
+    } catch { e.target.textContent = 'Copy failed'; }
+    setTimeout(() => (e.target.textContent = 'Copy Link'), 1500);
+  });
+
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', t === tab));
+      document.getElementById('tab-personal').hidden = tab.dataset.tab !== 'personal';
+      document.getElementById('tab-followup').hidden = tab.dataset.tab !== 'followup';
+    });
+  });
+
+  // Screenshot: capture the card, crop it, then download or copy
+  const shotBtn = document.getElementById('shot-btn');
+  const cropDialog = document.getElementById('crop-dialog');
+  const cropImg = document.getElementById('crop-img');
+  const cropSize = document.getElementById('crop-size');
+  let cropper = null;
+
+  shotBtn.addEventListener('click', async () => {
+    shotBtn.disabled = true;
+    shotBtn.textContent = 'Capturing…';
+    try {
+      const card = document.querySelector('[data-testid=lead-card]');
+      const canvas = await html2canvas(card, {
+        scale: 2, backgroundColor: null, useCORS: true,
+        // html2canvas paints native checkboxes grey; swap in a plain outlined box
+        onclone: (doc) => doc.querySelectorAll('.check').forEach((c) => {
+          const box = doc.createElement('span');
+          box.style.cssText = 'display:block;width:16px;height:16px;border:1px solid #c7c2bd;border-radius:3px;background:#fff';
+          c.replaceWith(box);
+        }),
+      });
+      cropImg.src = canvas.toDataURL('image/png');
+      await cropImg.decode();
+      cropDialog.showModal();
+      cropper?.destroy();
+      cropper = new Cropper(cropImg, {
+        viewMode: 1, autoCropArea: 1, background: false, zoomable: false,
+        crop: (e) => (cropSize.textContent = `${Math.round(e.detail.width)} × ${Math.round(e.detail.height)} px`),
+      });
+    } catch (err) {
+      alert('Could not capture screenshot: ' + err.message);
+    } finally {
+      shotBtn.disabled = false;
+      shotBtn.textContent = 'Screenshot';
+    }
+  });
+
+  const croppedBlob = () => new Promise((resolve) =>
+    cropper.getCroppedCanvas({ imageSmoothingQuality: 'high' }).toBlob(resolve, 'image/png'));
+
+  const closeCrop = () => { cropDialog.close(); };
+  cropDialog.addEventListener('close', () => { cropper?.destroy(); cropper = null; });
+
+  document.getElementById('crop-cancel').addEventListener('click', closeCrop);
+  document.getElementById('crop-reset').addEventListener('click', () => cropper.reset());
+  document.getElementById('crop-full').addEventListener('click', () => {
+    const { width, height } = cropper.getImageData();
+    cropper.setCropBoxData({ left: 0, top: 0, width, height });
+  });
+
+  document.getElementById('crop-download').addEventListener('click', async () => {
+    const blob = await croppedBlob();
+    const name = (form.name.value || 'lead').trim().replace(/\s+/g, '-').toLowerCase();
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob), download: `${name}-lead.png`,
+    });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    closeCrop();
+  });
+
+  document.getElementById('crop-copy').addEventListener('click', async (e) => {
+    try {
+      const blob = await croppedBlob();
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      e.target.textContent = 'Copied';
+    } catch { e.target.textContent = 'Copy failed'; }
+    setTimeout(() => (e.target.textContent = 'Copy Image'), 1500);
+  });
+
+  // Load from URL so a generated page is shareable / survives reload
+  function boot() {
+    const params = new URLSearchParams(location.search);
+    if (params.has('name')) {
+      const data = Object.fromEntries(params);
+      for (const [k, v] of Object.entries(data)) if (form[k]) form[k].value = v;
+      render(data);
+    } else {
+      showForm();
+    }
+  }
+  window.addEventListener('popstate', boot);
+  boot();
+</script>
+</body>
+</html>
