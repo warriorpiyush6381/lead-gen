@@ -36,6 +36,28 @@
     -webkit-font-smoothing: antialiased;
   }
   .wrap { max-width: 1340px; margin: 0 auto; padding: 32px 16px 64px; }
+
+  /* ---------- Brand bar ---------- */
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); }
+  .topbar-inner {
+    max-width: 1340px; margin: 0 auto; padding: 0 16px; height: 56px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-logo { display: block; height: 28px; width: auto; max-width: 140px; object-fit: contain; }
+  .brand-name {
+    font-size: 15px; font-weight: 600; letter-spacing: -.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Brand strip added to the card only in screenshots */
+  .card-brand {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .topbar .section, .card-brand .section {
+    color: var(--muted); font-size: 13px; white-space: nowrap;
+    padding-left: 12px; border-left: 1px solid var(--border);
+  }
   h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
   .sub { color: var(--muted); margin: 0 0 24px; }
   [hidden] { display: none !important; }
@@ -71,6 +93,22 @@
     outline: none; border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-ring);
   }
+  .logo-picker {
+    display: flex; align-items: center; gap: 10px;
+    height: 38px; padding: 0 4px 0 10px;
+    background: #fff; border: 1px solid var(--border); border-radius: 4px;
+  }
+  .logo-picker img { height: 24px; width: auto; max-width: 80px; object-fit: contain; }
+  .logo-picker .hint {
+    flex: 1; min-width: 0; color: var(--placeholder);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .logo-picker button {
+    height: 28px; padding: 0 10px; font: inherit; font-size: 13px; font-weight: 500;
+    border: 0; border-radius: 3px; background: none; color: var(--accent); cursor: pointer;
+  }
+  .logo-picker button:hover { background: var(--accent-soft); }
+  .logo-picker button.remove { color: var(--muted); }
   .actions { display: flex; gap: 12px; justify-content: flex-end; }
   .btn {
     height: 38px; padding: 0 18px; font: inherit; font-weight: 500;
@@ -168,6 +206,15 @@
 </style>
 </head>
 <body>
+<header class="topbar" id="topbar" hidden>
+  <div class="topbar-inner">
+    <div class="brand">
+      <img class="brand-logo" id="brand-logo" alt="" hidden>
+      <span class="brand-name" id="brand-name"></span>
+    </div>
+    <span class="section">Lead Manager</span>
+  </div>
+</header>
 <main class="wrap">
 
   <!-- ===== Form view ===== -->
@@ -176,6 +223,23 @@
     <p class="sub">Fill in the details and generate the lead page.</p>
 
     <form id="lead-form" class="form" autocomplete="off">
+      <fieldset>
+        <legend>Company</legend>
+        <div class="grid">
+          <div class="field"><label for="brand">Brand Name</label><input id="brand" name="brand" placeholder="Your company name"></div>
+          <div class="field">
+            <label for="logo-file">Logo</label>
+            <div class="logo-picker">
+              <img id="logo-preview" alt="" hidden>
+              <span class="hint" id="logo-hint">PNG, JPG or SVG</span>
+              <button type="button" id="logo-upload">Upload</button>
+              <button type="button" class="remove" id="logo-remove" hidden>Remove</button>
+              <input type="file" id="logo-file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
       <fieldset>
         <legend>Lead</legend>
         <div class="grid">
@@ -360,6 +424,76 @@
     return d.toISOString().slice(0, 16);
   };
 
+  // Brand: name + logo are company settings, so they persist across leads
+  const BRAND_KEY = 'crm.brand';
+  const LOGO_KEY = 'crm.logo';
+  const store = {
+    get: (k) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } },
+    set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} },
+  };
+  const topbar = document.getElementById('topbar');
+  const brandLogo = document.getElementById('brand-logo');
+  const brandName = document.getElementById('brand-name');
+  const logoPreview = document.getElementById('logo-preview');
+  const logoHint = document.getElementById('logo-hint');
+  const logoFile = document.getElementById('logo-file');
+  const logoRemove = document.getElementById('logo-remove');
+  let logo = store.get(LOGO_KEY);
+
+  function paintBrand() {
+    const name = form.brand.value.trim();
+    brandName.textContent = name;
+    brandName.hidden = !name;
+    brandLogo.hidden = !logo;
+    if (logo) brandLogo.src = logo;
+    brandLogo.alt = name ? `${name} logo` : 'Logo';
+    topbar.hidden = !name && !logo;
+
+    logoPreview.hidden = !logo;
+    if (logo) logoPreview.src = logo;
+    logoHint.hidden = !!logo;
+    logoRemove.hidden = !logo;
+    document.getElementById('logo-upload').textContent = logo ? 'Replace' : 'Upload';
+  }
+
+  // Downscale raster logos so they fit comfortably in localStorage
+  async function readLogo(file) {
+    const url = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(file);
+    });
+    if (file.type === 'image/svg+xml') return url;
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, 160 / img.naturalHeight);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png');
+  }
+
+  document.getElementById('logo-upload').addEventListener('click', () => logoFile.click());
+  logoFile.addEventListener('change', async () => {
+    const file = logoFile.files[0];
+    logoFile.value = '';
+    if (!file) return;
+    try {
+      logo = await readLogo(file);
+      store.set(LOGO_KEY, logo);
+      paintBrand();
+    } catch { alert('Could not read that image. Try a PNG, JPG or SVG.'); }
+  });
+  logoRemove.addEventListener('click', () => {
+    logo = '';
+    store.set(LOGO_KEY, '');
+    paintBrand();
+  });
+  form.brand.addEventListener('input', paintBrand);
+
   function render(data) {
     const age = data.leadAge !== '' && data.leadAge != null
       ? Number(data.leadAge)
@@ -373,7 +507,9 @@
     document.querySelectorAll('[data-out]').forEach((el) => {
       el.textContent = view[el.dataset.out] ?? '';
     });
-    document.title = `${data.name || 'Lead'} · Lead`;
+    store.set(BRAND_KEY, (data.brand || '').trim());
+    paintBrand();
+    document.title = `${data.name || 'Lead'} · ${data.brand?.trim() || 'Lead'}`;
     formView.hidden = true;
     leadView.hidden = false;
   }
@@ -381,12 +517,19 @@
   function showForm() {
     leadView.hidden = true;
     formView.hidden = false;
-    document.title = 'Lead Generator';
+    document.title = form.brand.value.trim() || 'Lead Generator';
   }
 
   // Defaults for date fields
   form.addedOn.value = nowLocal();
   form.updatedOn.value = nowLocal();
+  form.brand.value = store.get(BRAND_KEY);
+
+  // Clear wipes the lead, not the company branding
+  form.addEventListener('reset', () => setTimeout(() => {
+    form.brand.value = store.get(BRAND_KEY);
+    paintBrand();
+  }));
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -431,12 +574,22 @@
       const card = document.querySelector('[data-testid=lead-card]');
       const canvas = await html2canvas(card, {
         scale: 2, backgroundColor: null, useCORS: true,
-        // html2canvas paints native checkboxes grey; swap in a plain outlined box
-        onclone: (doc) => doc.querySelectorAll('.check').forEach((c) => {
-          const box = doc.createElement('span');
-          box.style.cssText = 'display:block;width:16px;height:16px;border:1px solid #c7c2bd;border-radius:3px;background:#fff';
-          c.replaceWith(box);
-        }),
+        onclone: (doc) => {
+          // html2canvas paints native checkboxes grey; swap in a plain outlined box
+          doc.querySelectorAll('.check').forEach((c) => {
+            const box = doc.createElement('span');
+            box.style.cssText = 'display:block;width:16px;height:16px;border:1px solid #c7c2bd;border-radius:3px;background:#fff';
+            c.replaceWith(box);
+          });
+          // Put the brand header at the top of the captured card
+          const bar = doc.getElementById('topbar');
+          if (!bar.hidden) {
+            const strip = doc.createElement('div');
+            strip.className = 'card-brand';
+            strip.append(...bar.querySelector('.topbar-inner').children);
+            doc.querySelector('[data-testid=lead-card]').prepend(strip);
+          }
+        },
       });
       cropImg.src = canvas.toDataURL('image/png');
       await cropImg.decode();
@@ -492,9 +645,11 @@
     const params = new URLSearchParams(location.search);
     if (params.has('name')) {
       const data = Object.fromEntries(params);
+      data.brand ??= store.get(BRAND_KEY);
       for (const [k, v] of Object.entries(data)) if (form[k]) form[k].value = v;
       render(data);
     } else {
+      paintBrand();
       showForm();
     }
   }
